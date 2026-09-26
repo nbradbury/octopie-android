@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">OctoPie</string>
+    <string name="tagline">Tap the pies before they fall!</string>
+    <string name="play">Play</string>
+    <string name="play_again">Play again</string>
+    <string name="game_over">Game over</string>
+    <string name="score">Score %1$d</string>
+    <string name="level">Level %1$d</string>
+    <string name="best">Best %1$d</string>
+    <string name="new_best">New best!</string>
+</resources>
