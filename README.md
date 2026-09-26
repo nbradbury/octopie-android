@@ -3,25 +3,30 @@
 An Android arcade game: pies rain down through the reef, and you tap them so the octopus can whip out a tentacle and grab them before they fall off the screen. The pies come faster and in bigger bunches the longer you last. Miss three and the octopus pops.
 
 <p>
-  <img src="docs/screenshots/menu.jpg" width="200" alt="Start screen">
-  <img src="docs/screenshots/reach.jpg" width="200" alt="A tentacle reaching for a pie">
-  <img src="docs/screenshots/surprised.jpg" width="200" alt="The octopus looking surprised after the third miss">
-  <img src="docs/screenshots/pop.jpg" width="200" alt="The octopus popping">
+  <img src="docs/screenshots/menu.jpg" width="160" alt="Start screen">
+  <img src="docs/screenshots/reach.jpg" width="160" alt="A tentacle reaching for a pie">
+  <img src="docs/screenshots/golden.jpg" width="160" alt="A glowing golden pie marked +5">
+  <img src="docs/screenshots/surprised.jpg" width="160" alt="The octopus looking surprised after the third miss">
+  <img src="docs/screenshots/pop.jpg" width="160" alt="The octopus popping">
 </p>
 
 ## How to play
 
 - Tap a falling pie and the octopus sends a tentacle after it. The tentacle chases the pie as it falls, reels it in, and the octopus gulps it down.
-- Each pie caught is one point. Your best score is saved.
+- Each pie caught is one point. Your best score is saved and shown on the start screen.
+- About one pie in twelve is golden: it glows, carries a "+5" and is worth five points. Letting a golden pie fall costs nothing.
 - Up to eight tentacles can be out at once.
-- A pie that falls off the bottom costs a life; lose three and it's game over.
+- A regular pie that falls off the bottom costs a life; lose three and it's game over.
 - Every 15 seconds the level goes up: pies fall faster, arrive more often, come in bursts, and the music speeds up.
+- Pause with the button in the corner or with Back. The game also pauses by itself whenever the app loses focus, so a phone call never costs you a life.
 
 ## Features
 
 - The octopus watches the closest pie, gently sways its arms, and reaches with a different arm each time.
 - When the game is lost it looks surprised, puffs up and pops in a burst of bubbles.
-- Swoosh, gulp and pop sound effects, background music, haptics, and a sound toggle (which also silences vibration) on the start, pause and game-over screens.
+- Swoosh, gulp and pop sound effects and background music.
+- Haptics: a tick for each pie swallowed, a stronger click for a golden one, a buzz for a miss and a thump when the octopus pops.
+- A sound toggle on the start, pause and game-over screens that silences vibration too.
 - Full screen, portrait only.
 
 ## Building
@@ -39,8 +44,8 @@ Kotlin and Jetpack Compose, with the game drawn on a single `Canvas` and driven 
 
 | File | What it does |
 |---|---|
-| `game/GameEngine.kt` | The rules, in plain Kotlin with no Android dependencies: pies, tentacles, lives, levels, the octopus's gaze. `Difficulty` holds the tuning curves. |
-| `game/GameScreen.kt` | The frame loop, touch handling, drawing order and the HUD and menu overlays. |
+| `game/GameEngine.kt` | The rules, in plain Kotlin with no Android dependencies: pies, tentacles, lives, levels, pausing and the octopus's gaze. It reports what happened each frame as `GameEvent`s, and `Difficulty` holds the tuning curves. |
+| `game/GameScreen.kt` | The frame loop, touch handling, drawing order, the HUD and menu overlays, and the sounds and haptics played for each `GameEvent`. |
 | `game/OctopusDrawing.kt` | The octopus: swaying arms (a bitmap mesh warp), eyes that follow the pies, and the surprised-and-pop game-over sequence. |
 | `game/TentacleDrawing.kt` | Draws a reaching tentacle as a tapered, curling Bézier with suckers. |
 | `game/GameSounds.kt`, `game/BackgroundMusic.kt` | Sound effects (`SoundPool`) and looping music (`MediaPlayer`) whose tempo follows the level. |
