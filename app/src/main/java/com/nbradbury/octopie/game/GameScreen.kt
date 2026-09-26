@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -51,10 +52,12 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -103,6 +106,9 @@ fun GameScreen(
     val sounds = remember { GameSounds(context) }
     DisposableEffect(sounds) { onDispose { sounds.release() } }
     SideEffect { sounds.enabled = soundOn }
+    // The sound toggle silences vibration too; the system touch-feedback setting also applies.
+    val haptics by rememberUpdatedState(LocalHapticFeedback.current)
+    val hapticsOn by rememberUpdatedState(soundOn)
     BackgroundMusic(
         R.raw.sunlight_through_the_blue,
         enabled = soundOn,
@@ -111,31 +117,35 @@ fun GameScreen(
 
     LaunchedEffect(Unit) {
         var last = 0L
-        var reachesHeard = engine.reaches
-        var gulpsHeard = engine.gulps
-        var poppedHeard = engine.octopusPopped
+        fun buzz(type: HapticFeedbackType) {
+            if (hapticsOn) haptics.performHapticFeedback(type)
+        }
         while (true) {
             withFrameNanos { now ->
                 // Clamp so a resume from the background doesn't teleport the pies.
                 val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceAtMost(0.05f)
                 last = now
                 engine.update(dt)
-                if (engine.reaches > reachesHeard) {
-                    reachesHeard = engine.reaches
-                    sounds.swoosh()
+                for (event in engine.drainEvents()) {
+                    when (event) {
+                        GameEvent.Reach -> sounds.swoosh()
+                        is GameEvent.Gulp -> {
+                            sounds.gulp()
+                            buzz(if (event.golden) HapticFeedbackType.Confirm else HapticFeedbackType.ContextClick)
+                        }
+                        GameEvent.Miss -> buzz(HapticFeedbackType.Reject)
+                        GameEvent.Pop -> {
+                            sounds.pop()
+                            buzz(HapticFeedbackType.LongPress)
+                        }
+                    }
                 }
-                if (engine.gulps > gulpsHeard) {
-                    gulpsHeard = engine.gulps
-                    sounds.gulp()
-                }
-                if (engine.octopusPopped && !poppedHeard) sounds.pop()
-                poppedHeard = engine.octopusPopped
                 frameTime = now
                 hud = Hud(engine.phase, engine.score, engine.lives, engine.level, engine.showResults, engine.paused)
             }
         }
     }
-    // Never let the game run on unattended: pause when the app loses focus, and make Back pause (or resume).
+    // Never let the game run unattended: pause when the app loses focus, and Back toggles pause.
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { engine.pause() }
     BackHandler(enabled = hud.phase == Phase.PLAYING) {
         if (engine.paused) engine.resume() else engine.pause()
@@ -185,7 +195,7 @@ fun GameScreen(
                 drawPie(pie, it.x, it.y, it.width, sin(it.wobble) * 12f, it.golden, time, textMeasurer)
             }
             engine.tentacles.filter { it.carrying }.forEach {
-                // Shrink the pie as it's reeled in toward the octopus's mouth.
+                // Shrink the pie as it's reeled in.
                 val remaining = hypot(it.tipX - it.rootX, it.tipY - it.rootY) / it.grabDistance
                 val width = it.pie.width * (0.4f + 0.6f * remaining)
                 drawPie(pie, it.tipX, it.tipY, width, 0f, it.pie.golden, time, textMeasurer)
@@ -268,7 +278,6 @@ private fun DrawScope.drawPie(
     val height = width * GameEngine.PIE_ASPECT
     val centre = Offset(x, y)
     if (golden) {
-        // A soft pulsing halo so bonus pies stand out from the crowd.
         val glow = width * 0.8f
         val alpha = 0.45f + 0.2f * sin(time * 6f)
         drawCircle(
@@ -288,7 +297,6 @@ private fun DrawScope.drawPie(
     }
 }
 
-/** Outlined white text centred on a golden pie. */
 private fun DrawScope.drawBonusLabel(measurer: TextMeasurer, text: String, centre: Offset, pieHeight: Float) {
     // Colour and style go in at draw time, and Fill must be explicit: the layout's paint keeps the last
     // drawStyle it was given, so leaving it unset would stroke the white text too.
@@ -398,7 +406,6 @@ private fun HudBar(hud: Hud, onPause: (() -> Unit)?) {
     }
 }
 
-/** A round speaker button: sound waves when [on], a cross when muted. */
 @Composable
 private fun SoundToggle(on: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     val label = stringResource(R.string.sound)
@@ -455,7 +462,6 @@ private fun SecondaryButton(text: String, onClick: () -> Unit) {
     }
 }
 
-/** A round button with two bars. */
 @Composable
 private fun PauseButton(onClick: () -> Unit) {
     val label = stringResource(R.string.pause)

@@ -7,6 +7,14 @@ import kotlin.random.Random
 
 enum class Phase { READY, PLAYING, GAME_OVER }
 
+/** Moments the UI gives feedback for; see [GameEngine.drainEvents]. */
+sealed interface GameEvent {
+    data object Reach : GameEvent
+    data class Gulp(val golden: Boolean) : GameEvent
+    data object Miss : GameEvent
+    data object Pop : GameEvent
+}
+
 class Pie(
     var x: Float,
     var y: Float,
@@ -22,7 +30,6 @@ class Pie(
     var targeted = false
 }
 
-/** A reaching arm, growing from ([rootX], [rootY]) behind the octopus. */
 class Tentacle(val pie: Pie, val rootX: Float, val rootY: Float, val curl: Float) {
     var tipX = rootX
     var tipY = rootY
@@ -39,7 +46,6 @@ class GameEngine(private val random: Random = Random.Default) {
     var height = 0f
         private set
 
-    // Octopus sprite bounds.
     var octoLeft = 0f
         private set
     var octoTop = 0f
@@ -79,11 +85,7 @@ class GameEngine(private val random: Random = Random.Default) {
         private set
     val level get() = 1 + (elapsed / LEVEL_SECONDS).toInt()
 
-    // Running totals across games; the UI plays a sound each time one goes up.
-    var reaches = 0
-        private set
-    var gulps = 0
-        private set
+    private val events = mutableListOf<GameEvent>()
 
     private var spawnTimer = 0f
     private var lastRoot = 0
@@ -111,7 +113,6 @@ class GameEngine(private val random: Random = Random.Default) {
         phase = Phase.PLAYING
     }
 
-    /** Freezes a game in progress; nothing moves and taps are ignored until [resume]. */
     fun pause() {
         if (phase == Phase.PLAYING) paused = true
     }
@@ -120,7 +121,6 @@ class GameEngine(private val random: Random = Random.Default) {
         paused = false
     }
 
-    /** Abandons the current game and goes back to the start screen. */
     fun quit() {
         pies.clear()
         tentacles.clear()
@@ -133,7 +133,9 @@ class GameEngine(private val random: Random = Random.Default) {
         elapsed += dt
         if (phase == Phase.GAME_OVER) {
             // Leftover pies drift off and arms retract while the octopus reacts.
+            val popped = octopusPopped
             overTime += dt
+            if (!popped && octopusPopped) events += GameEvent.Pop
             pies.forEach { it.y += it.speed * dt }
             pies.removeAll { it.y - it.height / 2 > height }
             updateTentacles(dt)
@@ -158,6 +160,7 @@ class GameEngine(private val random: Random = Random.Default) {
         tentacles.filter { it.pie in missed }.forEach { it.returning = true }
         val lost = missed.count { !it.golden }
         if (lost > 0) {
+            repeat(lost) { events += GameEvent.Miss }
             lives = (lives - lost).coerceAtLeast(0)
             lastMissAt = elapsed
             if (lives == 0) {
@@ -166,6 +169,9 @@ class GameEngine(private val random: Random = Random.Default) {
             }
         }
     }
+
+    /** What happened since the last call, oldest first, for the UI to play sounds and haptics for. */
+    fun drainEvents(): List<GameEvent> = events.toList().also { events.clear() }
 
     /** Sends a tentacle after the pie under ([x], [y]). Returns false if there's no pie there or no arm free. */
     fun tap(x: Float, y: Float): Boolean {
@@ -180,7 +186,7 @@ class GameEngine(private val random: Random = Random.Default) {
         lastRoot = (lastRoot + 1 + random.nextInt(ARM_ROOTS.size - 1)) % ARM_ROOTS.size
         val (fx, fy) = ARM_ROOTS[lastRoot]
         tentacles += Tentacle(pie, octoLeft + octoWidth * fx, octoTop + octoHeight * fy, curl)
-        reaches++
+        events += GameEvent.Reach
         return true
     }
 
@@ -199,7 +205,7 @@ class GameEngine(private val random: Random = Random.Default) {
                 }
             } else if (moveTip(t, t.rootX, t.rootY, step)) {
                 done += t
-                if (t.carrying) gulps++
+                if (t.carrying) events += GameEvent.Gulp(t.pie.golden)
             }
             if (t.carrying) {
                 t.pie.x = t.tipX
@@ -272,10 +278,7 @@ class GameEngine(private val random: Random = Random.Default) {
         const val RESULTS_DELAY = 2f
         const val GAZE_EASE = 8f
 
-        /**
-         * Where reaching arms start, as fractions of the octopus sprite: the body and the thick bases of the
-         * side arms, where the sprite is solid enough to hide an arm's base.
-         */
+        /** Arm roots as fractions of the sprite: spots solid enough to hide a reaching arm's base. */
         val ARM_ROOTS = listOf(
             0.21f to 0.65f,
             0.30f to 0.65f,
@@ -297,7 +300,6 @@ object Difficulty {
 
     fun spawnInterval(level: Int) = maxOf(0.3f, 0.8f / (1 + 0.25f * (level - 1)))
 
-    /** Background music tempo: a little faster each level, back to normal outside play. */
     fun musicSpeed(level: Int) = min(1.4f, 1f + 0.05f * (level - 1))
 
     fun burstSize(level: Int, random: Random) = when {

@@ -68,10 +68,7 @@ private val MeshPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
 private val Ink = Color(0xFFE2632A)
 private val InkDark = Color(0xFFB8471C)
 
-/**
- * Draws the octopus: bobbing and swaying its arms while playing, and watching the closest pie; on game over it looks surprised and
- * trembles, swells up, then pops into a spray of droplets and bubbles.
- */
+/** Draws the octopus: idling and watching pies in play; surprised, swelling and popping on game over. */
 fun DrawScope.drawOctopus(
     engine: GameEngine,
     time: Float,

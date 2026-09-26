@@ -35,6 +35,7 @@ class GameEngineTest {
             addPie(500f, 2200f)
             run(0.02f)
             assertEquals(GameEngine.MAX_LIVES - i - 1, engine.lives)
+            assertEquals(listOf(GameEvent.Miss), engine.drainEvents())
         }
         assertEquals(Phase.GAME_OVER, engine.phase)
     }
@@ -51,6 +52,7 @@ class GameEngineTest {
 
         run(GameEngine.SURPRISE_SECONDS + GameEngine.POP_SECONDS)
         assertTrue(engine.octopusPopped)
+        assertEquals(1, engine.drainEvents().count { it == GameEvent.Pop })
         assertFalse(engine.showResults)
         assertTrue(engine.tentacles.isEmpty())
 
@@ -74,8 +76,7 @@ class GameEngineTest {
         assertTrue(engine.tap(300f, 600f))
         run(2f)
         assertEquals(1, engine.score)
-        assertEquals(1, engine.reaches)
-        assertEquals(1, engine.gulps)
+        assertEquals(listOf(GameEvent.Reach, GameEvent.Gulp(golden = false)), engine.drainEvents())
         assertTrue(engine.pies.isEmpty())
         assertTrue(engine.tentacles.isEmpty())
     }
@@ -86,6 +87,7 @@ class GameEngineTest {
         engine.tap(300f, 600f)
         run(2f)
         assertEquals(GameEngine.GOLDEN_POINTS, engine.score)
+        assertTrue(GameEvent.Gulp(golden = true) in engine.drainEvents())
     }
 
     @Test
@@ -93,6 +95,7 @@ class GameEngineTest {
         addPie(500f, 2200f, golden = true)
         run(0.02f)
         assertEquals(GameEngine.MAX_LIVES, engine.lives)
+        assertTrue(engine.drainEvents().none { it == GameEvent.Miss })
         assertTrue(engine.pies.isEmpty())
     }
 

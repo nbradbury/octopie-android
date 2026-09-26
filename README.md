@@ -21,7 +21,7 @@ An Android arcade game: pies rain down through the reef, and you tap them so the
 
 - The octopus watches the closest pie, gently sways its arms, and reaches with a different arm each time.
 - When the game is lost it looks surprised, puffs up and pops in a burst of bubbles.
-- Swoosh, gulp and pop sound effects, background music, and a sound toggle on the start and game-over screens.
+- Swoosh, gulp and pop sound effects, background music, haptics, and a sound toggle (which also silences vibration) on the start, pause and game-over screens.
 - Full screen, portrait only.
 
 ## Building

@@ -23,13 +23,10 @@ class GameSounds(context: Context) {
 
     var enabled = true
 
-    /** The octopus swallows a pie. */
     fun gulp() = play(gulp)
 
-    /** A tentacle whips out. */
     fun swoosh() = play(swoosh)
 
-    /** The octopus bursts. */
     fun pop() = play(pop, rate = 1f)
 
     fun release() = pool.release()

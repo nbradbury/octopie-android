@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         // The volume keys adjust the game's sound, not the ringer.
         volumeControlStream = AudioManager.STREAM_MUSIC
-        // Full screen: hide the status and navigation bars; a swipe from the edge shows them briefly.
+        // Full screen; a swipe from the edge shows the bars briefly.
         WindowCompat.getInsetsController(window, window.decorView).run {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())
