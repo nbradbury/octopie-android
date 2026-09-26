@@ -93,7 +93,7 @@ def pop() -> np.ndarray:
 
 def main() -> None:
     save("gulp", gulp())
-    save("swoosh", swoosh(), peak=0.375)
+    save("swoosh", swoosh(), peak=0.28)
     save("pop", pop(), peak=0.8)
 
 
