@@ -1,18 +1,24 @@
 package com.nbradbury.octopie.game
 
+import android.graphics.Paint
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -48,11 +54,22 @@ private val Eyes = listOf(
 )
 private const val SPRITE_WIDTH = 800f
 
+// Arm sway, in sprite pixels. The head and body inside STILL_RADIUS of the body centre stay put (so the eyes
+// line up), and the sway fades in to full strength by FULL_SWAY_RADIUS, out along the arms.
+private const val BODY_X = 400f
+private const val BODY_Y = 165f
+private const val STILL_RADIUS = 190f
+private const val FULL_SWAY_RADIUS = 400f
+private const val SWAY = 10f
+private const val MESH_COLS = 24
+private const val MESH_ROWS = 16
+private val MeshPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+
 private val Ink = Color(0xFFE2632A)
 private val InkDark = Color(0xFFB8471C)
 
 /**
- * Draws the octopus: bobbing while playing and watching the closest pie; on game over it looks surprised and
+ * Draws the octopus: bobbing and swaying its arms while playing, and watching the closest pie; on game over it looks surprised and
  * trembles, swells up, then pops into a spray of droplets and bubbles.
  */
 fun DrawScope.drawOctopus(
@@ -69,7 +86,7 @@ fun DrawScope.drawOctopus(
 
     if (engine.phase != Phase.GAME_OVER) {
         val top = engine.octoTop + sin(time * 2f) * h * 0.015f
-        drawSprite(body, engine.octoLeft, top, w, h)
+        drawSwayingBody(body, engine.octoLeft, top, w, time)
         drawIrises(iris, engine.octoLeft, top, w / SPRITE_WIDTH, engine.gazeX, engine.gazeY)
         return
     }
@@ -110,6 +127,34 @@ private fun DrawScope.drawSprite(image: ImageBitmap, x: Float, y: Float, w: Floa
         dstSize = IntSize(w.roundToInt(), h.roundToInt()),
         alpha = alpha,
     )
+}
+
+/** Draws the sprite through a mesh whose vertices sway more the further they are out along the arms. */
+private fun DrawScope.drawSwayingBody(image: ImageBitmap, left: Float, top: Float, width: Float, time: Float) {
+    val bitmap = image.asAndroidBitmap()
+    val scale = width / bitmap.width
+    val verts = FloatArray((MESH_COLS + 1) * (MESH_ROWS + 1) * 2)
+    var i = 0
+    for (row in 0..MESH_ROWS) {
+        val sy = bitmap.height * row / MESH_ROWS.toFloat()
+        for (col in 0..MESH_COLS) {
+            val sx = bitmap.width * col / MESH_COLS.toFloat()
+            val dx = sx - BODY_X
+            val dy = sy - BODY_Y
+            val dist = hypot(dx, dy).coerceAtLeast(1f)
+            val t = ((dist - STILL_RADIUS) / (FULL_SWAY_RADIUS - STILL_RADIUS)).coerceIn(0f, 1f)
+            val weight = t * t * (3 - 2 * t)
+            val angle = atan2(dy, dx)
+            // Arms pointing different ways swing out of step, with a slow wave running out to the tips.
+            val swing = weight * SWAY * sin(time * 1.4f + angle * 3f - dist * 0.012f)
+            val stretch = weight * SWAY * 0.4f * sin(time * 1.1f + angle * 2f)
+            val ux = dx / dist
+            val uy = dy / dist
+            verts[i++] = left + (sx - uy * swing + ux * stretch) * scale
+            verts[i++] = top + (sy + ux * swing + uy * stretch) * scale
+        }
+    }
+    drawIntoCanvas { it.nativeCanvas.drawBitmapMesh(bitmap, MESH_COLS, MESH_ROWS, verts, 0, null, 0, MeshPaint) }
 }
 
 private fun DrawScope.drawIrises(iris: ImageBitmap, left: Float, top: Float, scale: Float, gazeX: Float, gazeY: Float) {
