@@ -74,6 +74,8 @@ class GameEngineTest {
         assertTrue(engine.tap(300f, 600f))
         run(2f)
         assertEquals(1, engine.score)
+        assertEquals(1, engine.reaches)
+        assertEquals(1, engine.gulps)
         assertTrue(engine.pies.isEmpty())
         assertTrue(engine.tentacles.isEmpty())
     }

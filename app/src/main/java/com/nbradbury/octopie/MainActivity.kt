@@ -2,6 +2,7 @@ package com.nbradbury.octopie
 
 import android.content.Context
 import android.graphics.Color
+import android.media.AudioManager
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -28,6 +29,8 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // The volume keys adjust the game's sound, not the ringer.
+        volumeControlStream = AudioManager.STREAM_MUSIC
         // Full screen: hide the status and navigation bars; a swipe from the edge shows them briefly.
         WindowCompat.getInsetsController(window, window.decorView).run {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -39,6 +40,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -63,15 +65,31 @@ fun GameScreen(bestScore: Int, onNewBest: (Int) -> Unit) {
     var frameTime by remember { mutableLongStateOf(0L) }
     var hud by remember { mutableStateOf(Hud(engine.phase, 0, engine.lives, 1, false)) }
     var bestAtStart by remember { mutableIntStateOf(bestScore) }
+    val context = LocalContext.current
+    val sounds = remember { GameSounds(context) }
+    DisposableEffect(sounds) { onDispose { sounds.release() } }
 
     LaunchedEffect(Unit) {
         var last = 0L
+        var reachesHeard = engine.reaches
+        var gulpsHeard = engine.gulps
+        var poppedHeard = engine.octopusPopped
         while (true) {
             withFrameNanos { now ->
                 // Clamp so a resume from the background doesn't teleport the pies.
                 val dt = if (last == 0L) 0f else ((now - last) / 1e9f).coerceAtMost(0.05f)
                 last = now
                 engine.update(dt)
+                if (engine.reaches > reachesHeard) {
+                    reachesHeard = engine.reaches
+                    sounds.swoosh()
+                }
+                if (engine.gulps > gulpsHeard) {
+                    gulpsHeard = engine.gulps
+                    sounds.gulp()
+                }
+                if (engine.octopusPopped && !poppedHeard) sounds.pop()
+                poppedHeard = engine.octopusPopped
                 frameTime = now
                 hud = Hud(engine.phase, engine.score, engine.lives, engine.level, engine.showResults)
             }
