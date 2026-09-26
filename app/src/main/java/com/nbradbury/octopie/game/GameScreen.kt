@@ -84,6 +84,11 @@ fun GameScreen(
     val sounds = remember { GameSounds(context) }
     DisposableEffect(sounds) { onDispose { sounds.release() } }
     SideEffect { sounds.enabled = soundOn }
+    BackgroundMusic(
+        R.raw.sunlight_through_the_blue,
+        enabled = soundOn,
+        speed = if (hud.phase == Phase.PLAYING) Difficulty.musicSpeed(hud.level) else 1f,
+    )
 
     LaunchedEffect(Unit) {
         var last = 0L
@@ -142,7 +147,7 @@ fun GameScreen(
             drawCentreCropped(reef)
             engine.tentacles.forEach {
                 drawTentacle(
-                    origin = Offset(engine.originX, engine.originY),
+                    origin = Offset(it.rootX, it.rootY),
                     tip = Offset(it.tipX, it.tipY),
                     curl = it.curl,
                     age = it.age,
@@ -153,7 +158,7 @@ fun GameScreen(
             engine.pies.forEach { drawPie(pie, it.x, it.y, it.width, sin(it.wobble) * 12f) }
             engine.tentacles.filter { it.carrying }.forEach {
                 // Shrink the pie as it's reeled in toward the octopus's mouth.
-                val remaining = hypot(it.tipX - engine.originX, it.tipY - engine.originY) / it.grabDistance
+                val remaining = hypot(it.tipX - it.rootX, it.tipY - it.rootY) / it.grabDistance
                 drawPie(pie, it.tipX, it.tipY, it.pie.width * (0.4f + 0.6f * remaining), 0f)
             }
             drawMissFlash(engine.elapsed - engine.lastMissAt)
@@ -162,6 +167,10 @@ fun GameScreen(
         when (hud.phase) {
             Phase.READY -> Panel {
                 Title(stringResource(R.string.app_name), 48.sp)
+                BasicText(
+                    stringResource(R.string.byline),
+                    style = TextStyle(color = Color.White.copy(alpha = 0.75f), fontSize = 15.sp, shadow = TextShadow),
+                )
                 Label(stringResource(R.string.tagline))
                 Label(stringResource(R.string.rules, GameEngine.MAX_LIVES))
                 PlayButton(stringResource(R.string.play)) {

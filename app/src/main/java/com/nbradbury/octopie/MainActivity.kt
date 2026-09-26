@@ -18,7 +18,6 @@ import androidx.core.content.edit
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import com.nbradbury.octopie.game.BackgroundMusic
 import com.nbradbury.octopie.game.GameScreen
 
 private const val KEY_BEST = "best_score"
@@ -43,7 +42,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             var best by remember { mutableIntStateOf(prefs.getInt(KEY_BEST, 0)) }
             var soundOn by remember { mutableStateOf(prefs.getBoolean(KEY_SOUND, true)) }
-            BackgroundMusic(R.raw.sunlight_through_the_blue, enabled = soundOn)
             GameScreen(
                 bestScore = best,
                 onNewBest = {

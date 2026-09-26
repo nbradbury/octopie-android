@@ -19,7 +19,10 @@ class Pie(
     var targeted = false
 }
 
-class Tentacle(val pie: Pie, var tipX: Float, var tipY: Float, val curl: Float) {
+/** A reaching arm, growing from ([rootX], [rootY]) behind the octopus. */
+class Tentacle(val pie: Pie, val rootX: Float, val rootY: Float, val curl: Float) {
+    var tipX = rootX
+    var tipY = rootY
     var age = 0f
     var returning = false
     var carrying = false
@@ -33,7 +36,7 @@ class GameEngine(private val random: Random = Random.Default) {
     var height = 0f
         private set
 
-    // Octopus sprite bounds, and the point under its body where reaching tentacles start.
+    // Octopus sprite bounds.
     var octoLeft = 0f
         private set
     var octoTop = 0f
@@ -41,8 +44,7 @@ class GameEngine(private val random: Random = Random.Default) {
     var octoWidth = 0f
         private set
     val octoHeight get() = octoWidth * OCTOPUS_ASPECT
-    val originX get() = octoLeft + octoWidth * 0.5f
-    val originY get() = octoTop + octoHeight * 0.52f
+    private val eyesX get() = octoLeft + octoWidth * 0.5f
     private val eyesY get() = octoTop + octoHeight * 0.25f
 
     val pies = mutableListOf<Pie>()
@@ -79,6 +81,7 @@ class GameEngine(private val random: Random = Random.Default) {
         private set
 
     private var spawnTimer = 0f
+    private var lastRoot = 0
 
     fun resize(width: Float, height: Float) {
         this.width = width
@@ -149,7 +152,10 @@ class GameEngine(private val random: Random = Random.Default) {
             ?: return false
         pie.targeted = true
         val curl = if (random.nextBoolean()) 1f else -1f
-        tentacles += Tentacle(pie, originX, originY, curl)
+        // A random arm, but never the one used last, so consecutive reaches look different.
+        lastRoot = (lastRoot + 1 + random.nextInt(ARM_ROOTS.size - 1)) % ARM_ROOTS.size
+        val (fx, fy) = ARM_ROOTS[lastRoot]
+        tentacles += Tentacle(pie, octoLeft + octoWidth * fx, octoTop + octoHeight * fy, curl)
         reaches++
         return true
     }
@@ -165,9 +171,9 @@ class GameEngine(private val random: Random = Random.Default) {
                     score++
                     t.returning = true
                     t.carrying = true
-                    t.grabDistance = hypot(t.tipX - originX, t.tipY - originY).coerceAtLeast(1f)
+                    t.grabDistance = hypot(t.tipX - t.rootX, t.tipY - t.rootY).coerceAtLeast(1f)
                 }
-            } else if (moveTip(t, originX, originY, step)) {
+            } else if (moveTip(t, t.rootX, t.rootY, step)) {
                 done += t
                 if (t.carrying) gulps++
             }
@@ -182,9 +188,9 @@ class GameEngine(private val random: Random = Random.Default) {
     private fun updateGaze(dt: Float) {
         var targetX = 0f
         var targetY = 0f
-        pies.minByOrNull { hypot(it.x - originX, it.y - eyesY) }?.let {
-            val dist = hypot(it.x - originX, it.y - eyesY).coerceAtLeast(1f)
-            targetX = (it.x - originX) / dist
+        pies.minByOrNull { hypot(it.x - eyesX, it.y - eyesY) }?.let {
+            val dist = hypot(it.x - eyesX, it.y - eyesY).coerceAtLeast(1f)
+            targetX = (it.x - eyesX) / dist
             targetY = (it.y - eyesY) / dist
         }
         val ease = min(1f, dt * GAZE_EASE)
@@ -239,6 +245,20 @@ class GameEngine(private val random: Random = Random.Default) {
         const val RESULTS_DELAY = 2f
         const val GAZE_EASE = 8f
 
+        /**
+         * Where reaching arms start, as fractions of the octopus sprite: the body and the thick bases of the
+         * side arms, where the sprite is solid enough to hide an arm's base.
+         */
+        val ARM_ROOTS = listOf(
+            0.21f to 0.65f,
+            0.30f to 0.65f,
+            0.34f to 0.55f,
+            0.50f to 0.52f,
+            0.56f to 0.62f,
+            0.64f to 0.55f,
+            0.75f to 0.67f,
+        )
+
         /** Tentacle tip speed in screen heights per second. */
         const val REACH_SPEED = 2.5f
     }
@@ -249,6 +269,9 @@ object Difficulty {
     fun fallSpeed(level: Int) = min(0.6f, 0.28f + 0.045f * (level - 1))
 
     fun spawnInterval(level: Int) = maxOf(0.3f, 0.8f / (1 + 0.25f * (level - 1)))
+
+    /** Background music tempo: a little faster each level, back to normal outside play. */
+    fun musicSpeed(level: Int) = min(1.4f, 1f + 0.05f * (level - 1))
 
     fun burstSize(level: Int, random: Random) = when {
         level < 4 -> 1

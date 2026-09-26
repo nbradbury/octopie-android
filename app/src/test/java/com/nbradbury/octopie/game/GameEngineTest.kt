@@ -102,11 +102,23 @@ class GameEngineTest {
     }
 
     @Test
+    fun `tentacles reach out from different arms`() {
+        repeat(8) { addPie(100f + it * 100f, 300f) }
+        repeat(8) { engine.tap(100f + it * 100f, 300f) }
+        val roots = engine.tentacles.map { it.rootX to it.rootY }
+        assertTrue(roots.toSet().size > 2)
+        assertTrue(roots.zipWithNext().none { (a, b) -> a == b })
+    }
+
+    @Test
     fun `difficulty ramps up and then caps`() {
         (1 until 30).forEach {
             assertTrue(Difficulty.fallSpeed(it + 1) >= Difficulty.fallSpeed(it))
             assertTrue(Difficulty.spawnInterval(it + 1) <= Difficulty.spawnInterval(it))
+            assertTrue(Difficulty.musicSpeed(it + 1) >= Difficulty.musicSpeed(it))
         }
+        assertEquals(1f, Difficulty.musicSpeed(1))
+        assertEquals(1.4f, Difficulty.musicSpeed(100))
         assertEquals(0.6f, Difficulty.fallSpeed(100))
         assertEquals(0.3f, Difficulty.spawnInterval(100))
     }
