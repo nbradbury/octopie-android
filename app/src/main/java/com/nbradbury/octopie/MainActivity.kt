@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             var best by remember { mutableIntStateOf(prefs.getInt(KEY_BEST, 0)) }
             var soundOn by remember { mutableStateOf(prefs.getBoolean(KEY_SOUND, true)) }
-            BackgroundMusic(R.raw.where_sunlight_fades, enabled = soundOn)
+            BackgroundMusic(R.raw.sunlight_through_the_blue, enabled = soundOn)
             GameScreen(
                 bestScore = best,
                 onNewBest = {
