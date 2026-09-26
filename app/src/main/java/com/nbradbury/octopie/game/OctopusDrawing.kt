@@ -60,7 +60,7 @@ private const val BODY_X = 400f
 private const val BODY_Y = 165f
 private const val STILL_RADIUS = 190f
 private const val FULL_SWAY_RADIUS = 400f
-private const val SWAY = 10f
+private const val SWAY = 16f
 private const val MESH_COLS = 24
 private const val MESH_ROWS = 16
 private val MeshPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
@@ -146,8 +146,8 @@ private fun DrawScope.drawSwayingBody(image: ImageBitmap, left: Float, top: Floa
             val weight = t * t * (3 - 2 * t)
             val angle = atan2(dy, dx)
             // Arms pointing different ways swing out of step, with a slow wave running out to the tips.
-            val swing = weight * SWAY * sin(time * 1.4f + angle * 3f - dist * 0.012f)
-            val stretch = weight * SWAY * 0.4f * sin(time * 1.1f + angle * 2f)
+            val swing = weight * SWAY * sin(time * 1.9f + angle * 3f - dist * 0.012f)
+            val stretch = weight * SWAY * 0.4f * sin(time * 1.5f + angle * 2f)
             val ux = dx / dist
             val uy = dy / dist
             verts[i++] = left + (sx - uy * swing + ux * stretch) * scale
