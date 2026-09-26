@@ -173,6 +173,7 @@ fun GameScreen(
                 )
                 Label(stringResource(R.string.tagline))
                 Label(stringResource(R.string.rules, GameEngine.MAX_LIVES))
+                if (bestScore > 0) Title(stringResource(R.string.best, bestScore), 24.sp)
                 PlayButton(stringResource(R.string.play)) {
                     bestAtStart = bestScore
                     engine.start()
