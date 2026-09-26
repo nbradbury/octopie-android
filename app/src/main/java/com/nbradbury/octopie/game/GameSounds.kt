@@ -21,6 +21,8 @@ class GameSounds(context: Context) {
     private val swoosh = pool.load(context, R.raw.swoosh, 1)
     private val pop = pool.load(context, R.raw.pop, 1)
 
+    var enabled = true
+
     /** The octopus swallows a pie. */
     fun gulp() = play(gulp)
 
@@ -33,6 +35,6 @@ class GameSounds(context: Context) {
     fun release() = pool.release()
 
     private fun play(sound: Int, rate: Float = 0.9f + Random.nextFloat() * 0.25f) {
-        pool.play(sound, 1f, 1f, 1, 0, rate)
+        if (enabled) pool.play(sound, 1f, 1f, 1, 0, rate)
     }
 }

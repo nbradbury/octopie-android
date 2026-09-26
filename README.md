@@ -6,3 +6,5 @@ Kotlin + Jetpack Compose, single `Canvas` game loop. Game rules live in `GameEng
 
 ## Assets
 Octopus and pie art were generated with Adobe Firefly. `tools/prepare_assets.py` cuts them out, builds the blurred reef background and the surprised face, and writes the drawables.
+
+Background music: "Where Sunlight Fades". Sound effects are synthesized by `tools/make_sounds.py`.

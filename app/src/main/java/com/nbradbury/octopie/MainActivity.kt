@@ -11,15 +11,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.nbradbury.octopie.game.BackgroundMusic
 import com.nbradbury.octopie.game.GameScreen
 
 private const val KEY_BEST = "best_score"
+private const val KEY_SOUND = "sound_on"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,10 +42,20 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences("scores", Context.MODE_PRIVATE)
         setContent {
             var best by remember { mutableIntStateOf(prefs.getInt(KEY_BEST, 0)) }
-            GameScreen(bestScore = best) {
-                best = it
-                prefs.edit { putInt(KEY_BEST, it) }
-            }
+            var soundOn by remember { mutableStateOf(prefs.getBoolean(KEY_SOUND, true)) }
+            BackgroundMusic(R.raw.where_sunlight_fades, enabled = soundOn)
+            GameScreen(
+                bestScore = best,
+                onNewBest = {
+                    best = it
+                    prefs.edit { putInt(KEY_BEST, it) }
+                },
+                soundOn = soundOn,
+                onSoundChange = {
+                    soundOn = it
+                    prefs.edit { putBoolean(KEY_SOUND, it) }
+                },
+            )
         }
     }
 }

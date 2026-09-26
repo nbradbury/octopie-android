@@ -13,12 +13,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -31,11 +34,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.pointerInput
@@ -44,6 +51,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -60,7 +70,12 @@ import kotlin.math.sin
 private data class Hud(val phase: Phase, val score: Int, val lives: Int, val level: Int, val showResults: Boolean)
 
 @Composable
-fun GameScreen(bestScore: Int, onNewBest: (Int) -> Unit) {
+fun GameScreen(
+    bestScore: Int,
+    onNewBest: (Int) -> Unit,
+    soundOn: Boolean,
+    onSoundChange: (Boolean) -> Unit,
+) {
     val engine = remember { GameEngine() }
     var frameTime by remember { mutableLongStateOf(0L) }
     var hud by remember { mutableStateOf(Hud(engine.phase, 0, engine.lives, 1, false)) }
@@ -68,6 +83,7 @@ fun GameScreen(bestScore: Int, onNewBest: (Int) -> Unit) {
     val context = LocalContext.current
     val sounds = remember { GameSounds(context) }
     DisposableEffect(sounds) { onDispose { sounds.release() } }
+    SideEffect { sounds.enabled = soundOn }
 
     LaunchedEffect(Unit) {
         var last = 0L
@@ -170,6 +186,13 @@ fun GameScreen(bestScore: Int, onNewBest: (Int) -> Unit) {
                 }
             }
         }
+        if (hud.phase == Phase.READY || hud.showResults) {
+            SoundToggle(
+                on = soundOn,
+                onChange = onSoundChange,
+                modifier = Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(16.dp),
+            )
+        }
     }
 }
 
@@ -207,6 +230,7 @@ private fun DrawScope.drawMissFlash(sinceMiss: Float) {
     )
 }
 
+private val PanelColor = Color(0xAA06283A)
 private val TextShadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, 3f), 6f)
 
 @Composable
@@ -228,7 +252,7 @@ private fun Panel(content: @Composable () -> Unit) {
             Modifier
                 .padding(bottom = 160.dp)
                 .clip(RoundedCornerShape(28.dp))
-                .background(Color(0xAA06283A))
+                .background(PanelColor)
                 .padding(horizontal = 36.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -269,6 +293,50 @@ private fun HudBar(hud: Hud) {
                 contentDescription = null,
                 modifier = Modifier.size(width = 44.dp, height = 24.dp).alpha(if (i < hud.lives) 1f else 0.25f),
             )
+        }
+    }
+}
+
+/** A round speaker button: sound waves when [on], a cross when muted. */
+@Composable
+private fun SoundToggle(on: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val label = stringResource(R.string.sound)
+    Canvas(
+        modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(PanelColor)
+            .toggleable(value = on, role = Role.Switch, onValueChange = onChange)
+            .semantics { contentDescription = label }
+            .padding(12.dp),
+    ) {
+        // Drawn on a 24-unit grid.
+        val u = size.width / 24
+        val speaker = Path().apply {
+            moveTo(3 * u, 9 * u)
+            lineTo(8 * u, 9 * u)
+            lineTo(13 * u, 4 * u)
+            lineTo(13 * u, 20 * u)
+            lineTo(8 * u, 15 * u)
+            lineTo(3 * u, 15 * u)
+            close()
+        }
+        drawPath(speaker, Color.White)
+        if (on) {
+            for (radius in listOf(4f, 8f)) {
+                drawArc(
+                    Color.White,
+                    startAngle = -45f,
+                    sweepAngle = 90f,
+                    useCenter = false,
+                    topLeft = Offset((13 - radius) * u, (12 - radius) * u),
+                    size = Size(2 * radius * u, 2 * radius * u),
+                    style = Stroke(width = 2 * u, cap = StrokeCap.Round),
+                )
+            }
+        } else {
+            drawLine(Color.White, Offset(16 * u, 9 * u), Offset(22 * u, 15 * u), 2 * u, StrokeCap.Round)
+            drawLine(Color.White, Offset(22 * u, 9 * u), Offset(16 * u, 15 * u), 2 * u, StrokeCap.Round)
         }
     }
 }

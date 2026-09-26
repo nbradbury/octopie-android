@@ -9,4 +9,5 @@
     <string name="level">Level %1$d</string>
     <string name="best">Best %1$d</string>
     <string name="new_best">New best!</string>
+    <string name="sound">Sound</string>
 </resources>
