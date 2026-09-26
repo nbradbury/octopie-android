@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -204,7 +204,7 @@ private fun Label(text: String) = BasicText(
 
 @Composable
 private fun Panel(content: @Composable () -> Unit) {
-    Box(Modifier.fillMaxSize().systemBarsPadding(), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().safeDrawingPadding(), contentAlignment = Alignment.Center) {
         Column(
             Modifier
                 .padding(bottom = 160.dp)
@@ -237,7 +237,7 @@ private fun PlayButton(text: String, onClick: () -> Unit) {
 @Composable
 private fun HudBar(hud: Hud) {
     Row(
-        Modifier.fillMaxWidth().systemBarsPadding().padding(horizontal = 20.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().safeDrawingPadding().padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

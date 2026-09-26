@@ -13,6 +13,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.nbradbury.octopie.game.GameScreen
 
 private const val KEY_BEST = "best_score"
@@ -25,6 +28,11 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // Full screen: hide the status and navigation bars; a swipe from the edge shows them briefly.
+        WindowCompat.getInsetsController(window, window.decorView).run {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
         val prefs = getSharedPreferences("scores", Context.MODE_PRIVATE)
         setContent {
             var best by remember { mutableIntStateOf(prefs.getInt(KEY_BEST, 0)) }
