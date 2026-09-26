@@ -83,6 +83,7 @@ fun GameScreen(bestScore: Int, onNewBest: (Int) -> Unit) {
 
     val reef = ImageBitmap.imageResource(R.drawable.reef_bg)
     val octopus = ImageBitmap.imageResource(R.drawable.octopus)
+    val octopusIris = ImageBitmap.imageResource(R.drawable.octopus_iris)
     val octopusSurprised = ImageBitmap.imageResource(R.drawable.octopus_surprised)
     val popBits = remember { popBits() }
     val pie = ImageBitmap.imageResource(R.drawable.pie)
@@ -114,7 +115,7 @@ fun GameScreen(bestScore: Int, onNewBest: (Int) -> Unit) {
                     baseWidth = engine.octoWidth * 0.09f,
                 )
             }
-            drawOctopus(engine, time, octopus, octopusSurprised, popBits)
+            drawOctopus(engine, time, octopus, octopusIris, octopusSurprised, popBits)
             engine.pies.forEach { drawPie(pie, it.x, it.y, it.width, sin(it.wobble) * 12f) }
             engine.tentacles.filter { it.carrying }.forEach {
                 // Shrink the pie as it's reeled in toward the octopus's mouth.

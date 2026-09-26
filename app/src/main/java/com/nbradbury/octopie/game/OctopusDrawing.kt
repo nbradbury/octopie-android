@@ -1,10 +1,13 @@
 package com.nbradbury.octopie.game
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -27,17 +30,36 @@ fun popBits(random: Random = Random(7)) = List(26) {
     )
 }
 
+/** An eye white and its resting iris, in sprite pixels. Must match EYES in tools/prepare_assets.py. */
+private class Eye(
+    val cx: Float,
+    val cy: Float,
+    val rx: Float,
+    val ry: Float,
+    val irisX: Float,
+    val irisY: Float,
+    val irisRx: Float,
+    val irisRy: Float,
+)
+
+private val Eyes = listOf(
+    Eye(341f, 132f, 20f, 25.5f, irisX = 345f, irisY = 136f, irisRx = 16f, irisRy = 20.5f),
+    Eye(456f, 136f, 33f, 28f, irisX = 454.5f, irisY = 138.5f, irisRx = 21.5f, irisRy = 21.5f),
+)
+private const val SPRITE_WIDTH = 800f
+
 private val Ink = Color(0xFFE2632A)
 private val InkDark = Color(0xFFB8471C)
 
 /**
- * Draws the octopus: bobbing while playing; on game over it looks surprised and trembles, swells up, then
- * pops into a spray of droplets and bubbles.
+ * Draws the octopus: bobbing while playing and watching the closest pie; on game over it looks surprised and
+ * trembles, swells up, then pops into a spray of droplets and bubbles.
  */
 fun DrawScope.drawOctopus(
     engine: GameEngine,
     time: Float,
-    normal: ImageBitmap,
+    body: ImageBitmap,
+    iris: ImageBitmap,
     surprised: ImageBitmap,
     bits: List<PopBit>,
 ) {
@@ -46,7 +68,9 @@ fun DrawScope.drawOctopus(
     val centre = Offset(engine.octoLeft + w / 2, engine.octoTop + h * 0.45f)
 
     if (engine.phase != Phase.GAME_OVER) {
-        drawSprite(normal, engine.octoLeft, engine.octoTop + sin(time * 2f) * h * 0.015f, w, h)
+        val top = engine.octoTop + sin(time * 2f) * h * 0.015f
+        drawSprite(body, engine.octoLeft, top, w, h)
+        drawIrises(iris, engine.octoLeft, top, w / SPRITE_WIDTH, engine.gazeX, engine.gazeY)
         return
     }
 
@@ -86,6 +110,33 @@ private fun DrawScope.drawSprite(image: ImageBitmap, x: Float, y: Float, w: Floa
         dstSize = IntSize(w.roundToInt(), h.roundToInt()),
         alpha = alpha,
     )
+}
+
+private fun DrawScope.drawIrises(iris: ImageBitmap, left: Float, top: Float, scale: Float, gazeX: Float, gazeY: Float) {
+    for (eye in Eyes) {
+        val white = Path().apply {
+            addOval(
+                Rect(
+                    left + (eye.cx - eye.rx) * scale,
+                    top + (eye.cy - eye.ry) * scale,
+                    left + (eye.cx + eye.rx) * scale,
+                    top + (eye.cy + eye.ry) * scale,
+                ),
+            )
+        }
+        // Enough travel for the iris to tuck partly under the lid when looking hard to one side.
+        val x = eye.irisX + gazeX * (eye.rx - eye.irisRx * 0.6f)
+        val y = eye.irisY + gazeY * (eye.ry - eye.irisRy * 0.6f)
+        val irisLeft = left + (x - eye.irisRx) * scale
+        val irisTop = top + (y - eye.irisRy) * scale
+        clipPath(white) {
+            drawImage(
+                iris,
+                dstOffset = IntOffset(irisLeft.roundToInt(), irisTop.roundToInt()),
+                dstSize = IntSize((2 * eye.irisRx * scale).roundToInt(), (2 * eye.irisRy * scale).roundToInt()),
+            )
+        }
+    }
 }
 
 private const val BURST_SECONDS = 0.8f

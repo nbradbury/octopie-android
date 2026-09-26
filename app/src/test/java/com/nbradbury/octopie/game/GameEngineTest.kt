@@ -60,6 +60,15 @@ class GameEngineTest {
     }
 
     @Test
+    fun `the octopus looks at the closest pie`() {
+        addPie(100f, 300f)
+        addPie(900f, 100f)
+        run(1f)
+        assertTrue(engine.gazeX < -0.2f)
+        assertTrue(engine.gazeY < -0.9f)
+    }
+
+    @Test
     fun `tapping a pie sends a tentacle that catches it`() {
         addPie(300f, 600f, speed = 200f)
         assertTrue(engine.tap(300f, 600f))

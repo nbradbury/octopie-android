@@ -43,6 +43,7 @@ class GameEngine(private val random: Random = Random.Default) {
     val octoHeight get() = octoWidth * OCTOPUS_ASPECT
     val originX get() = octoLeft + octoWidth * 0.5f
     val originY get() = octoTop + octoHeight * 0.52f
+    private val eyesY get() = octoTop + octoHeight * 0.25f
 
     val pies = mutableListOf<Pie>()
     val tentacles = mutableListOf<Tentacle>()
@@ -63,6 +64,12 @@ class GameEngine(private val random: Random = Random.Default) {
         private set
     val octopusPopped get() = phase == Phase.GAME_OVER && overTime >= SURPRISE_SECONDS + POP_SECONDS
     val showResults get() = phase == Phase.GAME_OVER && overTime >= RESULTS_DELAY
+
+    /** Where the octopus is looking: a vector of length ≤ 1 that eases toward the closest falling pie. */
+    var gazeX = 0f
+        private set
+    var gazeY = 0f
+        private set
     val level get() = 1 + (elapsed / LEVEL_SECONDS).toInt()
 
     private var spawnTimer = 0f
@@ -83,6 +90,8 @@ class GameEngine(private val random: Random = Random.Default) {
         elapsed = 0f
         lastMissAt = Float.NEGATIVE_INFINITY
         overTime = 0f
+        gazeX = 0f
+        gazeY = 0f
         spawnTimer = 0.5f
         phase = Phase.PLAYING
     }
@@ -110,6 +119,7 @@ class GameEngine(private val random: Random = Random.Default) {
             pie.wobble += pie.wobbleSpeed * dt
         }
         updateTentacles(dt)
+        updateGaze(dt)
 
         val missed = pies.filter { it.y - it.height / 2 > height }
         if (missed.isNotEmpty()) {
@@ -161,6 +171,19 @@ class GameEngine(private val random: Random = Random.Default) {
         tentacles.removeAll(done)
     }
 
+    private fun updateGaze(dt: Float) {
+        var targetX = 0f
+        var targetY = 0f
+        pies.minByOrNull { hypot(it.x - originX, it.y - eyesY) }?.let {
+            val dist = hypot(it.x - originX, it.y - eyesY).coerceAtLeast(1f)
+            targetX = (it.x - originX) / dist
+            targetY = (it.y - eyesY) / dist
+        }
+        val ease = min(1f, dt * GAZE_EASE)
+        gazeX += (targetX - gazeX) * ease
+        gazeY += (targetY - gazeY) * ease
+    }
+
     /** Moves the tip up to [step] toward the target and returns true once it arrives. */
     private fun moveTip(t: Tentacle, x: Float, y: Float, step: Float): Boolean {
         val dist = hypot(x - t.tipX, y - t.tipY)
@@ -206,6 +229,7 @@ class GameEngine(private val random: Random = Random.Default) {
         const val SURPRISE_SECONDS = 1.1f
         const val POP_SECONDS = 0.18f
         const val RESULTS_DELAY = 2f
+        const val GAZE_EASE = 8f
 
         /** Tentacle tip speed in screen heights per second. */
         const val REACH_SPEED = 2.5f
