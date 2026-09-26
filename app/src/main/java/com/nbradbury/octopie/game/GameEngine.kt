@@ -246,9 +246,9 @@ class GameEngine(private val random: Random = Random.Default) {
 
 object Difficulty {
     /** Fall speed in screen heights per second. */
-    fun fallSpeed(level: Int) = min(0.6f, 0.225f + 0.045f * (level - 1))
+    fun fallSpeed(level: Int) = min(0.6f, 0.28f + 0.045f * (level - 1))
 
-    fun spawnInterval(level: Int) = maxOf(0.3f, 1f / (1 + 0.25f * (level - 1)))
+    fun spawnInterval(level: Int) = maxOf(0.3f, 0.8f / (1 + 0.25f * (level - 1)))
 
     fun burstSize(level: Int, random: Random) = when {
         level < 4 -> 1
