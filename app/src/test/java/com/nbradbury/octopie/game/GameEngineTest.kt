@@ -17,8 +17,8 @@ class GameEngineTest {
         engine.start()
     }
 
-    private fun addPie(x: Float, y: Float, speed: Float = 0f) =
-        Pie(x, y, width = 200f, speed = speed, wobbleSpeed = 0f).also { engine.pies += it }
+    private fun addPie(x: Float, y: Float, speed: Float = 0f, golden: Boolean = false) =
+        Pie(x, y, width = 200f, speed = speed, wobbleSpeed = 0f, golden = golden).also { engine.pies += it }
 
     /** Steps the engine without letting the spawner add pies of its own. */
     private fun run(seconds: Float) {
@@ -78,6 +78,46 @@ class GameEngineTest {
         assertEquals(1, engine.gulps)
         assertTrue(engine.pies.isEmpty())
         assertTrue(engine.tentacles.isEmpty())
+    }
+
+    @Test
+    fun `a golden pie is worth five`() {
+        addPie(300f, 600f, golden = true)
+        engine.tap(300f, 600f)
+        run(2f)
+        assertEquals(GameEngine.GOLDEN_POINTS, engine.score)
+    }
+
+    @Test
+    fun `dropping a golden pie costs no life`() {
+        addPie(500f, 2200f, golden = true)
+        run(0.02f)
+        assertEquals(GameEngine.MAX_LIVES, engine.lives)
+        assertTrue(engine.pies.isEmpty())
+    }
+
+    @Test
+    fun `pausing freezes the game and ignores taps until resumed`() {
+        val pie = addPie(300f, 600f, speed = 200f)
+        engine.pause()
+        run(1f)
+        assertEquals(600f, pie.y)
+        assertFalse(engine.tap(300f, 600f))
+
+        engine.resume()
+        run(0.5f)
+        assertTrue(pie.y > 600f)
+        assertTrue(engine.tap(pie.x, pie.y))
+    }
+
+    @Test
+    fun `quitting goes back to the start screen`() {
+        addPie(300f, 600f)
+        engine.pause()
+        engine.quit()
+        assertEquals(Phase.READY, engine.phase)
+        assertFalse(engine.paused)
+        assertTrue(engine.pies.isEmpty())
     }
 
     @Test

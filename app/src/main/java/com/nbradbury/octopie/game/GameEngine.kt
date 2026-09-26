@@ -13,8 +13,11 @@ class Pie(
     val width: Float,
     val speed: Float,
     val wobbleSpeed: Float,
+    /** A bonus pie: worth [GameEngine.GOLDEN_POINTS], and letting it fall costs nothing. */
+    val golden: Boolean = false,
 ) {
     val height get() = width * GameEngine.PIE_ASPECT
+    val points get() = if (golden) GameEngine.GOLDEN_POINTS else 1
     var wobble = 0f
     var targeted = false
 }
@@ -51,6 +54,8 @@ class GameEngine(private val random: Random = Random.Default) {
     val tentacles = mutableListOf<Tentacle>()
 
     var phase = Phase.READY
+        private set
+    var paused = false
         private set
     var score = 0
         private set
@@ -99,14 +104,32 @@ class GameEngine(private val random: Random = Random.Default) {
         elapsed = 0f
         lastMissAt = Float.NEGATIVE_INFINITY
         overTime = 0f
+        paused = false
         gazeX = 0f
         gazeY = 0f
         spawnTimer = 0.5f
         phase = Phase.PLAYING
     }
 
+    /** Freezes a game in progress; nothing moves and taps are ignored until [resume]. */
+    fun pause() {
+        if (phase == Phase.PLAYING) paused = true
+    }
+
+    fun resume() {
+        paused = false
+    }
+
+    /** Abandons the current game and goes back to the start screen. */
+    fun quit() {
+        pies.clear()
+        tentacles.clear()
+        paused = false
+        phase = Phase.READY
+    }
+
     fun update(dt: Float) {
-        if (phase == Phase.READY) return
+        if (phase == Phase.READY || paused) return
         elapsed += dt
         if (phase == Phase.GAME_OVER) {
             // Leftover pies drift off and arms retract while the octopus reacts.
@@ -131,10 +154,11 @@ class GameEngine(private val random: Random = Random.Default) {
         updateGaze(dt)
 
         val missed = pies.filter { it.y - it.height / 2 > height }
-        if (missed.isNotEmpty()) {
-            pies.removeAll(missed)
-            tentacles.filter { it.pie in missed }.forEach { it.returning = true }
-            lives = (lives - missed.size).coerceAtLeast(0)
+        pies.removeAll(missed)
+        tentacles.filter { it.pie in missed }.forEach { it.returning = true }
+        val lost = missed.count { !it.golden }
+        if (lost > 0) {
+            lives = (lives - lost).coerceAtLeast(0)
             lastMissAt = elapsed
             if (lives == 0) {
                 phase = Phase.GAME_OVER
@@ -145,7 +169,7 @@ class GameEngine(private val random: Random = Random.Default) {
 
     /** Sends a tentacle after the pie under ([x], [y]). Returns false if there's no pie there or no arm free. */
     fun tap(x: Float, y: Float): Boolean {
-        if (phase != Phase.PLAYING || tentacles.size >= MAX_TENTACLES) return false
+        if (phase != Phase.PLAYING || paused || tentacles.size >= MAX_TENTACLES) return false
         val pie = pies
             .filter { !it.targeted && hypot(it.x - x, it.y - y) <= it.width / 2 * TAP_SLOP }
             .minByOrNull { hypot(it.x - x, it.y - y) }
@@ -168,7 +192,7 @@ class GameEngine(private val random: Random = Random.Default) {
             if (!t.returning) {
                 if (moveTip(t, t.pie.x, t.pie.y, step)) {
                     pies.remove(t.pie)
-                    score++
+                    score += t.pie.points
                     t.returning = true
                     t.carrying = true
                     t.grabDistance = hypot(t.tipX - t.rootX, t.tipY - t.rootY).coerceAtLeast(1f)
@@ -229,6 +253,7 @@ class GameEngine(private val random: Random = Random.Default) {
                 width = pieWidth,
                 speed = speed * (0.85f + random.nextFloat() * 0.3f),
                 wobbleSpeed = 2f + random.nextFloat() * 2f,
+                golden = random.nextFloat() < GOLDEN_CHANCE,
             )
         }
     }
@@ -240,6 +265,8 @@ class GameEngine(private val random: Random = Random.Default) {
         const val PIE_ASPECT = 215f / 400f
         const val OCTOPUS_ASPECT = 550f / 800f
         const val TAP_SLOP = 1.3f
+        const val GOLDEN_POINTS = 5
+        const val GOLDEN_CHANCE = 1f / 12
         const val SURPRISE_SECONDS = 1.1f
         const val POP_SECONDS = 0.18f
         const val RESULTS_DELAY = 2f

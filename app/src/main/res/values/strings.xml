@@ -11,4 +11,8 @@
     <string name="best">Best score: %1$d</string>
     <string name="new_best">New best!</string>
     <string name="sound">Sound</string>
+    <string name="pause">Pause</string>
+    <string name="paused">Paused</string>
+    <string name="resume">Resume</string>
+    <string name="quit">Quit to menu</string>
 </resources>

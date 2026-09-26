@@ -1,14 +1,17 @@
 package com.nbradbury.octopie.game
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -37,11 +40,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.changedToDown
@@ -54,20 +61,32 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.nbradbury.octopie.R
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /** The slice of engine state the overlays care about, so they only recompose when it changes. */
-private data class Hud(val phase: Phase, val score: Int, val lives: Int, val level: Int, val showResults: Boolean)
+private data class Hud(
+    val phase: Phase,
+    val score: Int,
+    val lives: Int,
+    val level: Int,
+    val showResults: Boolean,
+    val paused: Boolean,
+)
 
 @Composable
 fun GameScreen(
@@ -78,7 +97,7 @@ fun GameScreen(
 ) {
     val engine = remember { GameEngine() }
     var frameTime by remember { mutableLongStateOf(0L) }
-    var hud by remember { mutableStateOf(Hud(engine.phase, 0, engine.lives, 1, false)) }
+    var hud by remember { mutableStateOf(Hud(engine.phase, 0, engine.lives, 1, false, false)) }
     var bestAtStart by remember { mutableIntStateOf(bestScore) }
     val context = LocalContext.current
     val sounds = remember { GameSounds(context) }
@@ -112,10 +131,16 @@ fun GameScreen(
                 if (engine.octopusPopped && !poppedHeard) sounds.pop()
                 poppedHeard = engine.octopusPopped
                 frameTime = now
-                hud = Hud(engine.phase, engine.score, engine.lives, engine.level, engine.showResults)
+                hud = Hud(engine.phase, engine.score, engine.lives, engine.level, engine.showResults, engine.paused)
             }
         }
     }
+    // Never let the game run on unattended: pause when the app loses focus, and make Back pause (or resume).
+    LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { engine.pause() }
+    BackHandler(enabled = hud.phase == Phase.PLAYING) {
+        if (engine.paused) engine.resume() else engine.pause()
+    }
+
     LaunchedEffect(hud.phase) {
         if (hud.phase == Phase.GAME_OVER && engine.score > bestScore) onNewBest(engine.score)
     }
@@ -126,6 +151,7 @@ fun GameScreen(
     val octopusSurprised = ImageBitmap.imageResource(R.drawable.octopus_surprised)
     val popBits = remember { popBits() }
     val pie = ImageBitmap.imageResource(R.drawable.pie)
+    val textMeasurer = rememberTextMeasurer()
 
     Box(
         Modifier
@@ -155,11 +181,14 @@ fun GameScreen(
                 )
             }
             drawOctopus(engine, time, octopus, octopusIris, octopusSurprised, popBits)
-            engine.pies.forEach { drawPie(pie, it.x, it.y, it.width, sin(it.wobble) * 12f) }
+            engine.pies.forEach {
+                drawPie(pie, it.x, it.y, it.width, sin(it.wobble) * 12f, it.golden, time, textMeasurer)
+            }
             engine.tentacles.filter { it.carrying }.forEach {
                 // Shrink the pie as it's reeled in toward the octopus's mouth.
                 val remaining = hypot(it.tipX - it.rootX, it.tipY - it.rootY) / it.grabDistance
-                drawPie(pie, it.tipX, it.tipY, it.pie.width * (0.4f + 0.6f * remaining), 0f)
+                val width = it.pie.width * (0.4f + 0.6f * remaining)
+                drawPie(pie, it.tipX, it.tipY, width, 0f, it.pie.golden, time, textMeasurer)
             }
             drawMissFlash(engine.elapsed - engine.lastMissAt)
         }
@@ -179,7 +208,15 @@ fun GameScreen(
                     engine.start()
                 }
             }
-            Phase.PLAYING -> HudBar(hud)
+            Phase.PLAYING -> {
+                HudBar(hud, onPause = engine::pause.takeUnless { hud.paused })
+                if (hud.paused) Panel {
+                    Title(stringResource(R.string.paused), 40.sp)
+                    Title(stringResource(R.string.score, hud.score), 28.sp)
+                    PlayButton(stringResource(R.string.resume), onClick = engine::resume)
+                    SecondaryButton(stringResource(R.string.quit), onClick = engine::quit)
+                }
+            }
             Phase.GAME_OVER -> if (hud.showResults) Panel {
                 Title(stringResource(R.string.game_over), 40.sp)
                 Title(stringResource(R.string.score, hud.score), 28.sp)
@@ -196,7 +233,7 @@ fun GameScreen(
                 }
             }
         }
-        if (hud.phase == Phase.READY || hud.showResults) {
+        if (hud.phase == Phase.READY || hud.showResults || hud.paused) {
             SoundToggle(
                 on = soundOn,
                 onChange = onSoundChange,
@@ -218,16 +255,67 @@ private fun DrawScope.drawCentreCropped(image: ImageBitmap) {
     )
 }
 
-private fun DrawScope.drawPie(image: ImageBitmap, x: Float, y: Float, width: Float, degrees: Float) {
+private fun DrawScope.drawPie(
+    image: ImageBitmap,
+    x: Float,
+    y: Float,
+    width: Float,
+    degrees: Float,
+    golden: Boolean,
+    time: Float,
+    measurer: TextMeasurer,
+) {
     val height = width * GameEngine.PIE_ASPECT
-    rotate(degrees, pivot = Offset(x, y)) {
+    val centre = Offset(x, y)
+    if (golden) {
+        // A soft pulsing halo so bonus pies stand out from the crowd.
+        val glow = width * 0.8f
+        val alpha = 0.45f + 0.2f * sin(time * 6f)
+        drawCircle(
+            Brush.radialGradient(listOf(GoldGlow.copy(alpha = alpha), Color.Transparent), centre, glow),
+            glow,
+            centre,
+        )
+    }
+    rotate(degrees, pivot = centre) {
         drawImage(
             image,
             dstOffset = IntOffset((x - width / 2).roundToInt(), (y - height / 2).roundToInt()),
             dstSize = IntSize(width.roundToInt(), height.roundToInt()),
+            colorFilter = if (golden) GoldFilter else null,
         )
+        if (golden) drawBonusLabel(measurer, "+${GameEngine.GOLDEN_POINTS}", centre, height)
     }
 }
+
+/** Outlined white text centred on a golden pie. */
+private fun DrawScope.drawBonusLabel(measurer: TextMeasurer, text: String, centre: Offset, pieHeight: Float) {
+    // Colour and style go in at draw time, and Fill must be explicit: the layout's paint keeps the last
+    // drawStyle it was given, so leaving it unset would stroke the white text too.
+    val layout = measurer.measure(text, TextStyle(fontSize = (pieHeight * 0.6f).toSp(), fontWeight = FontWeight.Black))
+    val topLeft = centre - Offset(layout.size.width / 2f, layout.size.height / 2f)
+    drawText(
+        layout,
+        color = GoldOutline,
+        topLeft = topLeft,
+        drawStyle = Stroke(width = pieHeight * 0.09f, join = StrokeJoin.Round),
+    )
+    drawText(layout, color = Color.White, topLeft = topLeft, drawStyle = Fill)
+}
+
+// Recolours the pie photo as gold: its brightness, tinted warm and boosted.
+private val GoldFilter = ColorFilter.colorMatrix(
+    ColorMatrix(
+        floatArrayOf(
+            0.41f, 0.80f, 0.15f, 0f, 12f,
+            0.32f, 0.62f, 0.12f, 0f, 6f,
+            0.10f, 0.20f, 0.04f, 0f, 0f,
+            0f, 0f, 0f, 1f, 0f,
+        ),
+    ),
+)
+private val GoldGlow = Color(0xFFFFE27A)
+private val GoldOutline = Color(0xFF6B3A00)
 
 private fun DrawScope.drawMissFlash(sinceMiss: Float) {
     val alpha = (1f - sinceMiss / 0.5f).coerceIn(0f, 1f) * 0.6f
@@ -288,7 +376,7 @@ private fun PlayButton(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun HudBar(hud: Hud) {
+private fun HudBar(hud: Hud, onPause: (() -> Unit)?) {
     Row(
         Modifier.fillMaxWidth().safeDrawingPadding().padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -304,6 +392,9 @@ private fun HudBar(hud: Hud) {
                 modifier = Modifier.size(width = 44.dp, height = 24.dp).alpha(if (i < hud.lives) 1f else 0.25f),
             )
         }
+        // While paused the sound toggle takes this corner instead.
+        Spacer(Modifier.size(12.dp))
+        if (onPause != null) PauseButton(onPause) else Spacer(Modifier.size(44.dp))
     }
 }
 
@@ -348,5 +439,37 @@ private fun SoundToggle(on: Boolean, onChange: (Boolean) -> Unit, modifier: Modi
             drawLine(Color.White, Offset(16 * u, 9 * u), Offset(22 * u, 15 * u), 2 * u, StrokeCap.Round)
             drawLine(Color.White, Offset(22 * u, 9 * u), Offset(16 * u, 15 * u), 2 * u, StrokeCap.Round)
         }
+    }
+}
+
+@Composable
+private fun SecondaryButton(text: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(50))
+            .border(2.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 28.dp, vertical = 10.dp),
+    ) {
+        BasicText(text, style = TextStyle(color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold))
+    }
+}
+
+/** A round button with two bars. */
+@Composable
+private fun PauseButton(onClick: () -> Unit) {
+    val label = stringResource(R.string.pause)
+    Canvas(
+        Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(PanelColor)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = label }
+            .padding(14.dp),
+    ) {
+        val bar = size.width * 0.3f
+        drawRect(Color.White, topLeft = Offset(0f, 0f), size = Size(bar, size.height))
+        drawRect(Color.White, topLeft = Offset(size.width - bar, 0f), size = Size(bar, size.height))
     }
 }
