@@ -129,6 +129,7 @@ fun GameScreen(bestScore: Int, onNewBest: (Int) -> Unit) {
             Phase.READY -> Panel {
                 Title(stringResource(R.string.app_name), 48.sp)
                 Label(stringResource(R.string.tagline))
+                Label(stringResource(R.string.rules, GameEngine.MAX_LIVES))
                 PlayButton(stringResource(R.string.play)) {
                     bestAtStart = bestScore
                     engine.start()

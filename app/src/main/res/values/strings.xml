@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">OctoPie</string>
     <string name="tagline">Tap the pies before they fall!</string>
+    <string name="rules">Miss %1$d pies and it\'s game over.</string>
     <string name="play">Play</string>
     <string name="play_again">Play again</string>
     <string name="game_over">Game over</string>
