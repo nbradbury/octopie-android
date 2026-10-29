@@ -1,4 +1,4 @@
-# OctoPie
+# <img src="docs/icon.png" width="48" align="absmiddle" alt=""> OctoPie
 
 An Android arcade game: pies rain down through the reef, and you tap them so the octopus can whip out a tentacle and grab them before they fall off the screen. The pies come faster and in bigger bunches the longer you last. Miss three and the octopus pops.
 
